@@ -24,7 +24,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 #include <sys/stat.h>
 #include "Input.h"
 #include "network.h"
