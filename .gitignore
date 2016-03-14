@@ -1,2 +1,7 @@
 /build
 /*.elf
+/titledumper/obj/Release/source/*.o
+/titledumper/*.exe
+/titledumper/titledumper
+/titledumper/*.layout
+/titledumper/*.depend
