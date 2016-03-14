@@ -3,7 +3,7 @@ CFLAGS=-c -Wall
 LDFLAGS=
 SOURCES:= $(wildcard source/*.c) 
 OBJ_FILES = $(patsubst source/%.c,obj/%.o,$(SOURCES))
-EXECUTABLE=UdpDebugReader
+EXECUTABLE=titledumper
 
 $(EXECUTABLE): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) -o $@ $^
