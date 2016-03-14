@@ -102,7 +102,7 @@ int CreateSubfolder(const char * fullpath)
 #ifdef WIN32
             result = (mkdir(dirpath) == 0);
 #else
-            result = (mkdir(dirpath, 777) == 0);
+            result = (mkdir(dirpath, 0777) == 0);
 #endif
         }
 		free(dirpath);
@@ -123,7 +123,7 @@ int CreateSubfolder(const char * fullpath)
 #ifdef WIN32
 		result = (mkdir(dirpath) == 0);
 #else
-		result = (mkdir(dirpath, 777) == 0);
+		result = (mkdir(dirpath, 0777) == 0);
 #endif
 	}
 
