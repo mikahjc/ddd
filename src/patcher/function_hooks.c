@@ -59,8 +59,17 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
     unsigned int result;
     register int core_id;
     int remaining_bytes = 0;
-    // pointer to global variables of the loader
-    loader_globals_t *loader_globals = (loader_globals_t*)(0xEFE19D00);
+
+    int sgFileOffset;
+    int sgBufferNumber;
+    int *sgBounceError;
+    int *sgGotBytes;
+    int *sgTotalBytes;
+    int *sgIsLoadingBuffer;
+    int *sgFinishedLoadingBuffer;
+
+    // get the offset of per core global variable for dynload initialized (just a simple address + (core_id * 4))
+    unsigned int gDynloadInitialized;
 
     // get the current core
     asm volatile("mfspr %0, 0x3EF" : "=r" (core_id));
@@ -69,8 +78,36 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
     // time measurement at this position for logger  -> we don't need it right now except maybe for debugging
     //unsigned long long systemTime1 = Loader_GetSystemTime();
 
-    // get the offset of per core global variable for dynload initialized (just a simple address + (core_id * 4))
-    unsigned int gDynloadInitialized = *(volatile unsigned int*)(0xEFE13C3C + (core_id << 2));
+	if(OS_FIRMWARE == 550)
+    {
+        // pointer to global variables of the loader
+        loader_globals_550_t *loader_globals = (loader_globals_550_t*)(0xEFE19E80);
+
+        gDynloadInitialized = *(volatile unsigned int*)(0xEFE13DBC + (core_id << 2));
+        sgBufferNumber = loader_globals->sgBufferNumber;
+        sgFileOffset = loader_globals->sgFileOffset;
+        sgBounceError = &loader_globals->sgBounceError;
+        sgGotBytes = &loader_globals->sgGotBytes;
+        sgTotalBytes = &loader_globals->sgTotalBytes;
+        sgFinishedLoadingBuffer = &loader_globals->sgFinishedLoadingBuffer;
+        // not available on 5.5.x
+        sgIsLoadingBuffer = NULL;
+    }
+    else
+    {
+        // pointer to global variables of the loader
+        loader_globals_t *loader_globals = (loader_globals_t*)(0xEFE19D00);
+
+        gDynloadInitialized = *(volatile unsigned int*)(0xEFE13C3C + (core_id << 2));
+        sgBufferNumber = loader_globals->sgBufferNumber;
+        sgFileOffset = loader_globals->sgFileOffset;
+        sgBounceError = &loader_globals->sgBounceError;
+        sgGotBytes = &loader_globals->sgGotBytes;
+        sgIsLoadingBuffer = &loader_globals->sgIsLoadingBuffer;
+        // not available on < 5.5.x
+        sgTotalBytes = NULL;
+        sgFinishedLoadingBuffer = NULL;
+    }
 
     // the data loading was started in LiBounceOneChunk() and here it waits for IOSU to finish copy the data
     if(gDynloadInitialized != 0) {
@@ -118,14 +155,23 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
             rpl_struct = rpl_struct->next;
         }
 
-        unsigned int load_address = (loader_globals->sgBufferNumber == 1) ? 0xF6000000 : 0xF6400000;
+        unsigned int load_address = (sgBufferNumber == 1) ? 0xF6000000 : 0xF6400000;
 
         int bytes_loaded = remaining_bytes;
-        if(remaining_bytes == 0) {
-            bytes_loaded = (fileType == 0) ? *(volatile unsigned int*)(0xEFE05790) : *(volatile unsigned int*)(0xEFE0647C);
-            bytes_loaded -= loader_globals->sgFileOffset;
+        if(remaining_bytes == 0)
+        {
+            if(OS_FIRMWARE == 550)
+            {
+                bytes_loaded = *sgTotalBytes + remaining_bytes - sgFileOffset;
+            }
+            else
+            {
+                bytes_loaded = (fileType == 0) ? *(volatile unsigned int*)(0xEFE05790) : *(volatile unsigned int*)(0xEFE0647C);
+                bytes_loaded -= sgFileOffset;
+            }
         }
-        else {
+        else
+        {
             bytes_loaded = remaining_bytes;
         }
 
@@ -168,17 +214,31 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
     //------------------------------------------------------------------------------------------------------------------
 
     // set the result to the global bounce error variable
-    loader_globals->sgBounceError = result;
+    *sgBounceError = result;
+
     // disable global flag that buffer is still loaded by IOSU
-    loader_globals->sgIsLoadingBuffer = 0;
+	if(OS_FIRMWARE == 550)
+    {
+        unsigned int zeroBitCount = 0;
+        asm volatile("cntlzw %0, %0" : "=r" (zeroBitCount) : "r"(*sgFinishedLoadingBuffer));
+        *sgFinishedLoadingBuffer = zeroBitCount >> 5;
+    }
+    else
+    {
+        *sgIsLoadingBuffer = 0;
+    }
 
     // check result for errors
     if(result == 0) {
         // the remaining size is set globally and in stack variable only
         // if a pointer was passed to this function
         if(iRemainingBytes) {
-            loader_globals->sgGotBytes = remaining_bytes;
+            *sgGotBytes = remaining_bytes;
             *iRemainingBytes = remaining_bytes;
+            // on 5.5.x a new variable for total loaded bytes was added
+            if(sgTotalBytes != NULL) {
+                *sgTotalBytes += remaining_bytes;
+            }
         }
         // Comment (Dimok):
         // calculate time difference and print it on logging how long the wait for asynchronous data load took
