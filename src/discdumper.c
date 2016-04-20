@@ -121,6 +121,18 @@ static void DumpCodeXmls(SendData *sendData)
     sendData->length = snprintf((char*)sendData->data, BUFFER_SIZE, "/vol/code") + 1;
     sendwait(iClientSocket, sendData, sizeof(SendData) + sendData->length);
 
+    //! get full argstr
+    int argc;
+    char** argv;
+    char argstr[0x1000];
+    OSGetArgcArgv(&argc, &argv);
+    for (int i = 0; i < argc; i++)
+    {
+        if (i > 0)
+            strcat(argstr, " ");
+        strcat(argstr, argv[i]);
+    }
+
     char *xmlBuffer = (char*)malloc(BUFFER_SIZE);
     if(!xmlBuffer)
         return;
@@ -134,7 +146,7 @@ static void DumpCodeXmls(SendData *sendData)
     writePos += sprintf(writePos, "<app type=\"complex\" access=\"777\">\n");
     writePos += sprintf(writePos, "  <version type=\"unsignedInt\" length=\"4\">%i</version>\n", cosAppXmlInfoStruct.version_cos_xml);
     writePos += sprintf(writePos, "  <cmdFlags type=\"unsignedInt\" length=\"4\">%i</cmdFlags>\n", cosAppXmlInfoStruct.cmdFlags);
-    writePos += sprintf(writePos, "  <argstr type=\"string\" length=\"4096\">%s</argstr>\n", cosAppXmlInfoStruct.rpx_name);
+    writePos += sprintf(writePos, "  <argstr type=\"string\" length=\"4096\">%s</argstr>\n", argstr);
     writePos += sprintf(writePos, "  <avail_size type=\"hexBinary\" length=\"4\">%08X</avail_size>\n", cosAppXmlInfoStruct.avail_size);
     writePos += sprintf(writePos, "  <codegen_size type=\"hexBinary\" length=\"4\">%08X</codegen_size>\n", cosAppXmlInfoStruct.codegen_size);
     writePos += sprintf(writePos, "  <codegen_core type=\"hexBinary\" length=\"4\">%08X</codegen_core>\n", cosAppXmlInfoStruct.codegen_core);

@@ -99,6 +99,7 @@ extern int (* OSTryLockMutex)(void* mutex);
 //! System functions
 //!----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 extern u64 (* OSGetTitleID)(void);
+extern void (* OSGetArgcArgv)(int* argc, char*** argv);
 extern void (* __Exit)(void);
 extern void (* OSFatal)(const char* msg);
 extern void (* DCFlushRange)(const void *addr, u32 length);

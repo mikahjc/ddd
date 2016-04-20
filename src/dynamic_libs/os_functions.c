@@ -58,6 +58,7 @@ EXPORT_DECL(int, OSTryLockMutex, void* mutex);
 //! System functions
 //!----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 EXPORT_DECL(u64, OSGetTitleID, void);
+EXPORT_DECL(void, OSGetArgcArgv, int* argc, char*** argv);
 EXPORT_DECL(void, __Exit, void);
 EXPORT_DECL(void, OSFatal, const char* msg);
 EXPORT_DECL(void, OSSetExceptionCallback, u8 exceptionType, exception_callback newCallback);
@@ -125,6 +126,7 @@ void InitOSFunctionPointers(void)
     //!----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     OS_FIND_EXPORT(coreinit_handle, OSFatal);
     OS_FIND_EXPORT(coreinit_handle, OSGetTitleID);
+    OS_FIND_EXPORT(coreinit_handle, OSGetArgcArgv);
     OS_FIND_EXPORT(coreinit_handle, OSSetExceptionCallback);
     OS_FIND_EXPORT(coreinit_handle, DCFlushRange);
     OS_FIND_EXPORT(coreinit_handle, ICInvalidateRange);
