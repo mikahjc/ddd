@@ -52,8 +52,8 @@ static void KernelCopyData(unsigned int addr, unsigned int src, unsigned int len
     {
         asm volatile("mtdbatu 0, %0" : : "r" (0xC0001FFF));
         asm volatile("mtdbatl 0, %0" : : "r" (0x30000012));
-        asm volatile("mtdbatu 1, %0" : : "r" (0xB0801FFF));
-        asm volatile("mtdbatl 1, %0" : : "r" (0x20800012));
+        asm volatile("mtdbatu 1, %0" : : "r" (0xB8000FFF));
+        asm volatile("mtdbatl 1, %0" : : "r" (0x28000012));
     }
     asm volatile("eieio; isync");
 
