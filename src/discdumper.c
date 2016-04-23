@@ -10,6 +10,7 @@
 #include "game/rpx_rpl_table.h"
 #include "game/memory_area_table.h"
 #include "utils/net.h"
+#include "utils/utils.h"
 #include "discdumper.h"
 
 #define TITLE_LOCATION_ODD          0
@@ -122,46 +123,64 @@ static void DumpCodeXmls(SendData *sendData)
     sendwait(iClientSocket, sendData, sizeof(SendData) + sendData->length);
 
     //! get full argstr
-    int argc;
-    char** argv;
-    char argstr[0x1000];
-    OSGetArgcArgv(&argc, &argv);
-    for (int i = 0; i < argc; i++)
+    u32 maxArgStrLen = 0x1000;
+    char *argstr = (char*)malloc(maxArgStrLen);
+    if(argstr)
     {
-        if (i > 0)
-            strcat(argstr, " ");
-        strcat(argstr, argv[i]);
+        int argc = 0;
+        char** argv = 0;
+
+        OSGetArgcArgv(&argc, &argv);
+
+        char *writePos = argstr;
+        for (int i = 0; i < argc; i++)
+        {
+            if (i > 0)
+                writePos += snprintf(writePos, maxArgStrLen - (writePos - argstr), " ");
+
+            writePos += snprintf(writePos, maxArgStrLen - (writePos - argstr), "%s", argv[i]);
+        }
     }
 
-    char *xmlBuffer = (char*)malloc(BUFFER_SIZE);
-    if(!xmlBuffer)
+    u32 xmlBufferSize = BUFFER_SIZE + maxArgStrLen;
+    char *xmlBuffer = (char*)malloc(xmlBufferSize);
+    if(!xmlBuffer) {
+        if(argstr)
+            free(argstr);
         return;
+    }
 
     char *writePos = xmlBuffer;
 
     //!----------------------------------------------------------------------------------------------------------------------------------------------------------------
     //! create the cos.xml
     //!----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    writePos += sprintf(writePos, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-    writePos += sprintf(writePos, "<app type=\"complex\" access=\"777\">\n");
-    writePos += sprintf(writePos, "  <version type=\"unsignedInt\" length=\"4\">%i</version>\n", cosAppXmlInfoStruct.version_cos_xml);
-    writePos += sprintf(writePos, "  <cmdFlags type=\"unsignedInt\" length=\"4\">%i</cmdFlags>\n", cosAppXmlInfoStruct.cmdFlags);
-    writePos += sprintf(writePos, "  <argstr type=\"string\" length=\"4096\">%s</argstr>\n", argstr);
-    writePos += sprintf(writePos, "  <avail_size type=\"hexBinary\" length=\"4\">%08X</avail_size>\n", cosAppXmlInfoStruct.avail_size);
-    writePos += sprintf(writePos, "  <codegen_size type=\"hexBinary\" length=\"4\">%08X</codegen_size>\n", cosAppXmlInfoStruct.codegen_size);
-    writePos += sprintf(writePos, "  <codegen_core type=\"hexBinary\" length=\"4\">%08X</codegen_core>\n", cosAppXmlInfoStruct.codegen_core);
-    writePos += sprintf(writePos, "  <max_size type=\"hexBinary\" length=\"4\">%08X</max_size>\n", cosAppXmlInfoStruct.max_size);
-    writePos += sprintf(writePos, "  <max_codesize type=\"hexBinary\" length=\"4\">%08X</max_codesize>\n", cosAppXmlInfoStruct.max_codesize);
-    writePos += sprintf(writePos, "  <default_stack0_size type=\"hexBinary\" length=\"4\">%08X</default_stack0_size>\n", cosAppXmlInfoStruct.default_stack0_size);
-    writePos += sprintf(writePos, "  <default_stack1_size type=\"hexBinary\" length=\"4\">%08X</default_stack1_size>\n", cosAppXmlInfoStruct.default_stack1_size);
-    writePos += sprintf(writePos, "  <default_stack2_size type=\"hexBinary\" length=\"4\">%08X</default_stack2_size>\n", cosAppXmlInfoStruct.default_stack2_size);
-    writePos += sprintf(writePos, "  <default_redzone0_size type=\"hexBinary\" length=\"4\">%08X</default_redzone0_size>\n", cosAppXmlInfoStruct.default_redzone0_size);
-    writePos += sprintf(writePos, "  <default_redzone1_size type=\"hexBinary\" length=\"4\">%08X</default_redzone1_size>\n", cosAppXmlInfoStruct.default_redzone1_size);
-    writePos += sprintf(writePos, "  <default_redzone2_size type=\"hexBinary\" length=\"4\">%08X</default_redzone2_size>\n", cosAppXmlInfoStruct.default_redzone2_size);
-    writePos += sprintf(writePos, "  <exception_stack0_size type=\"hexBinary\" length=\"4\">%08X</exception_stack0_size>\n", cosAppXmlInfoStruct.exception_stack0_size);
-    writePos += sprintf(writePos, "  <exception_stack1_size type=\"hexBinary\" length=\"4\">%08X</exception_stack1_size>\n", cosAppXmlInfoStruct.exception_stack1_size);
-    writePos += sprintf(writePos, "  <exception_stack2_size type=\"hexBinary\" length=\"4\">%08X</exception_stack2_size>\n", cosAppXmlInfoStruct.exception_stack2_size);
-    writePos += sprintf(writePos, "</app>");
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "<app type=\"complex\" access=\"777\">\n");
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <version type=\"unsignedInt\" length=\"4\">%i</version>\n", cosAppXmlInfoStruct.version_cos_xml);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <cmdFlags type=\"unsignedInt\" length=\"4\">%i</cmdFlags>\n", cosAppXmlInfoStruct.cmdFlags);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <argstr type=\"string\" length=\"4096\">%s</argstr>\n", argstr ? argstr : "");
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <avail_size type=\"hexBinary\" length=\"4\">%08X</avail_size>\n", cosAppXmlInfoStruct.avail_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <codegen_size type=\"hexBinary\" length=\"4\">%08X</codegen_size>\n", cosAppXmlInfoStruct.codegen_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <codegen_core type=\"hexBinary\" length=\"4\">%08X</codegen_core>\n", cosAppXmlInfoStruct.codegen_core);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <max_size type=\"hexBinary\" length=\"4\">%08X</max_size>\n", cosAppXmlInfoStruct.max_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <max_codesize type=\"hexBinary\" length=\"4\">%08X</max_codesize>\n", cosAppXmlInfoStruct.max_codesize);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <default_stack0_size type=\"hexBinary\" length=\"4\">%08X</default_stack0_size>\n", cosAppXmlInfoStruct.default_stack0_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <default_stack1_size type=\"hexBinary\" length=\"4\">%08X</default_stack1_size>\n", cosAppXmlInfoStruct.default_stack1_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <default_stack2_size type=\"hexBinary\" length=\"4\">%08X</default_stack2_size>\n", cosAppXmlInfoStruct.default_stack2_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <default_redzone0_size type=\"hexBinary\" length=\"4\">%08X</default_redzone0_size>\n", cosAppXmlInfoStruct.default_redzone0_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <default_redzone1_size type=\"hexBinary\" length=\"4\">%08X</default_redzone1_size>\n", cosAppXmlInfoStruct.default_redzone1_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <default_redzone2_size type=\"hexBinary\" length=\"4\">%08X</default_redzone2_size>\n", cosAppXmlInfoStruct.default_redzone2_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <exception_stack0_size type=\"hexBinary\" length=\"4\">%08X</exception_stack0_size>\n", cosAppXmlInfoStruct.exception_stack0_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <exception_stack1_size type=\"hexBinary\" length=\"4\">%08X</exception_stack1_size>\n", cosAppXmlInfoStruct.exception_stack1_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "  <exception_stack2_size type=\"hexBinary\" length=\"4\">%08X</exception_stack2_size>\n", cosAppXmlInfoStruct.exception_stack2_size);
+    writePos += snprintf(writePos, xmlBufferSize - (writePos - xmlBuffer), "</app>");
+
+    if(argstr)
+    {
+        free(argstr);
+        argstr = NULL;
+    }
 
     u32 length = writePos - xmlBuffer;
 
@@ -334,14 +353,21 @@ void DumpRpxRpl(SendData *sendData)
         }
 
         unsigned int data_pos = 0;
+        unsigned char * sendDataPhys = (unsigned char*)OSEffectiveToPhysical(sendData->data);
+
+        // invalidate cache so it wont get written during or after our physical write and overwrite the data
+        InvalidateRange((u32)sendData->data, BUFFER_SIZE);
 
         while(data_pos < rpx_rpl_struct->size)
         {
             int blockSize = (data_pos + BUFFER_SIZE < rpx_rpl_struct->size) ? BUFFER_SIZE : rpx_rpl_struct->size - data_pos;
 
-            int copiedBytes = rpxRplCopyDataFromMem(rpx_rpl_struct, data_pos, (unsigned char*)sendData->data, blockSize);
+            int copiedBytes = rpxRplCopyDataFromMem(rpx_rpl_struct, data_pos, sendDataPhys, blockSize);
             if(copiedBytes <= 0)
                 break;
+
+            // invalidate cache to read new data directly from memory
+            InvalidateRange((u32)sendData->data, copiedBytes);
 
             sendData->tag = 0x03;
             sendData->length = copiedBytes;

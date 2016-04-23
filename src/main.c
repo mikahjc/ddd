@@ -107,7 +107,7 @@ int Menu_Main(void)
             OSScreenClearBufferEx(1, 0);
 
             // Print message
-            PRINT_TEXT2(14, 1, "-- DDD v0.2 by Dimok --");
+            PRINT_TEXT2(14, 1, "-- DDD v0.3 by Dimok --");
             PRINT_TEXT2(0, 5, "1.    Setup IP address of server application.");
 
             // Print ip digit selector

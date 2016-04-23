@@ -20,6 +20,8 @@
         res (* real_ ## name)(__VA_ARGS__) __attribute__((section(".data"))); \
         res my_ ## name(__VA_ARGS__)
 
+static u32 gLoaderPhysicalBufferAddr __attribute__((section(".data"))) = 0;
+
 DECL(int, FSBindMount, void *pClient, void *pCmd, char *source, char *target, int error)
 {
     if(strcmp(target, "/vol/app_priv") == 0 && IsDumpingDiscUsbMeta())
@@ -54,19 +56,19 @@ DECL(int, OSDynLoad_Acquire, char* rpl, unsigned int *handle, int r5 __attribute
 // It waits for the asynchronous call of LiLoadAsync for the IOSU to fill data to the RPX/RPL address
 // and return the still remaining bytes to load.
 // We override it and replace the loaded date from LiLoadAsync with our data and our remaining bytes to load.
-DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, int fileType)
+DECL(int, LiWaitOneChunk, int * iRemainingBytes, const char *filename, int fileType)
 {
-    unsigned int result;
-    register int core_id;
+    int result;
     int remaining_bytes = 0;
+    unsigned int core_id;
 
-    int sgFileOffset;
-    int sgBufferNumber;
+    int *sgBufferNumber;
     int *sgBounceError;
     int *sgGotBytes;
     int *sgTotalBytes;
     int *sgIsLoadingBuffer;
     int *sgFinishedLoadingBuffer;
+    unsigned int * __load_reply;
 
     // get the offset of per core global variable for dynload initialized (just a simple address + (core_id * 4))
     unsigned int gDynloadInitialized;
@@ -84,8 +86,8 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
         loader_globals_550_t *loader_globals = (loader_globals_550_t*)(0xEFE19E80);
 
         gDynloadInitialized = *(volatile unsigned int*)(0xEFE13DBC + (core_id << 2));
-        sgBufferNumber = loader_globals->sgBufferNumber;
-        sgFileOffset = loader_globals->sgFileOffset;
+        __load_reply = (unsigned int *)0xEFE1D998;
+        sgBufferNumber = &loader_globals->sgBufferNumber;
         sgBounceError = &loader_globals->sgBounceError;
         sgGotBytes = &loader_globals->sgGotBytes;
         sgTotalBytes = &loader_globals->sgTotalBytes;
@@ -99,8 +101,8 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
         loader_globals_t *loader_globals = (loader_globals_t*)(0xEFE19D00);
 
         gDynloadInitialized = *(volatile unsigned int*)(0xEFE13C3C + (core_id << 2));
-        sgBufferNumber = loader_globals->sgBufferNumber;
-        sgFileOffset = loader_globals->sgFileOffset;
+        __load_reply = (unsigned int *)0xEFE1D818;
+        sgBufferNumber = &loader_globals->sgBufferNumber;
         sgBounceError = &loader_globals->sgBounceError;
         sgGotBytes = &loader_globals->sgGotBytes;
         sgIsLoadingBuffer = &loader_globals->sgIsLoadingBuffer;
@@ -128,7 +130,7 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
     // After IOSU is done writing the data into the 0xF6000000/0xF6400000 address,
     // we overwrite it with our data before setting the global flag for IsLoadingBuffer to 0
     // Do this only if we are in the game that was launched by our method
-    if (*(volatile unsigned int*)0xEFE00000 != 0x6d656e2e && *(volatile unsigned int*)0xEFE00000 != 0x66666C5F)
+    if((result == 0) && *(volatile unsigned int*)0xEFE00000 != 0x6d656e2e && *(volatile unsigned int*)0xEFE00000 != 0x66666C5F)
     {
         s_rpx_rpl *rpl_struct = rpxRplTableGet();
         int found = 0;
@@ -155,20 +157,12 @@ DECL(int, LiWaitOneChunk, unsigned int * iRemainingBytes, const char *filename, 
             rpl_struct = rpl_struct->next;
         }
 
-        unsigned int load_address = (sgBufferNumber == 1) ? 0xF6000000 : 0xF6400000;
+        unsigned int load_address = (*sgBufferNumber == 1) ? gLoaderPhysicalBufferAddr : (gLoaderPhysicalBufferAddr + 0x00400000); // virtual 0xF6000000 and 0xF6400000
 
         int bytes_loaded = remaining_bytes;
         if(remaining_bytes == 0)
         {
-            if(OS_FIRMWARE == 550)
-            {
-                bytes_loaded = *sgTotalBytes + remaining_bytes - sgFileOffset;
-            }
-            else
-            {
-                bytes_loaded = (fileType == 0) ? *(volatile unsigned int*)(0xEFE05790) : *(volatile unsigned int*)(0xEFE0647C);
-                bytes_loaded -= sgFileOffset;
-            }
+            bytes_loaded = __load_reply[3];
         }
         else
         {
@@ -338,6 +332,10 @@ void PatchMethodHooks(void)
     }
 
     KernelRestoreDBATs(&table);
+
+    gLoaderPhysicalBufferAddr = (u32)OSEffectiveToPhysical((void*)0xF6000000);
+    if(gLoaderPhysicalBufferAddr == 0)
+        gLoaderPhysicalBufferAddr = 0x1B000000; // this is just in case and probably never needed
 }
 
 /* ****************************************************************** */

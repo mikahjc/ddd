@@ -39,8 +39,8 @@ extern "C" {
 #define usleep(usecs)                   OSSleepTicks(MICROSECS_TO_TICKS(usecs))
 #define sleep(secs)                     OSSleepTicks(SECS_TO_TICKS(secs))
 
-#define FLUSH_DATA_BLOCK(addr)          asm volatile("dcbf 0, %0; sync" : : "r"(((addr) & ~31)))
-#define INVAL_DATA_BLOCK(addr)          asm volatile("dcbi 0, %0; sync" : : "r"(((addr) & ~31)))
+#define FLUSH_DATA_BLOCK(addr)          asm volatile("dcbf 0, %0; sync; eieio" : : "r"(((addr) & ~31)))
+#define INVAL_DATA_BLOCK(addr)          asm volatile("dcbi 0, %0" : : "r"(((addr) & ~31)))
 
 #define EXPORT_DECL(res, func, ...)     res (* func)(__VA_ARGS__) __attribute__((section(".data"))) = 0;
 #define EXPORT_VAR(type, var)           type var __attribute__((section(".data")));
