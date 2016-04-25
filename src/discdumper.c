@@ -276,7 +276,7 @@ void DumpMetaPath(void *pClient, void *pCmd, SendData *sendData)
 
         if(!sendData)
         {
-            sendData = (SendData*) malloc(sizeof(SendData) + BUFFER_SIZE);
+            sendData = (SendData*) memalign(0x20, ALIGN32(sizeof(SendData) + BUFFER_SIZE));
             if(!sendData)
                 break;
 
@@ -324,7 +324,7 @@ void DumpRpxRpl(SendData *sendData)
 
     if(!sendData)
     {
-        sendData = (SendData*) malloc(sizeof(SendData) + BUFFER_SIZE);
+        sendData = (SendData*)memalign(0x20, ALIGN32(sizeof(SendData) + BUFFER_SIZE));
         if(!sendData)
             return;
 
@@ -522,7 +522,7 @@ void StartDumper()
 
     do
     {
-        sendData = (SendData*) malloc(sizeof(SendData) + BUFFER_SIZE);
+        sendData = (SendData*)memalign(0x20, ALIGN32(sizeof(SendData) + BUFFER_SIZE));
         if(!sendData)
             break;
 
