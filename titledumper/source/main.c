@@ -24,8 +24,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 #ifndef __APPLE__
 #include <malloc.h>
+#endif
+#ifdef __APPLE__
+#define fopen64 fopen
+#define ftello64 ftello
 #endif
 #include <sys/stat.h>
 #include "Input.h"
@@ -182,7 +187,7 @@ void processTag(int client_socket, SendData *sendData)
         {
             lastTime = gettime();
             lastSize = 0;
-            pFile = fopen(localPath, "wb");
+            pFile = fopen64(localPath, "wb");
             printf("Open file: %s\n", localPath);
             if(!pFile) {
                 printf("Failed to open: %s\n", localPath);
@@ -195,11 +200,11 @@ void processTag(int client_socket, SendData *sendData)
         if(!pFile) {
             break;
         }
-        unsigned int size = ftell(pFile);
+        uint64_t size = (uint64_t)ftello64(pFile);
         unsigned int time = gettime();
         float fTimeDiff = (time - lastTime) * 0.001f;
         float fSpeed = (fTimeDiff == 0.0f) ? 0.0f : ( (float)size / fTimeDiff / 1024.0f );
-        printf("Read file %i kb loaded with %0.3f kb/s\r", size / 1024, fSpeed);
+        printf("Read file %" PRIu64 " kb loaded with %0.3f kb/s\r", size / 1024, fSpeed);
         fwrite(sendData->data, 1, le32(sendData->length), pFile);
         break;
     }
