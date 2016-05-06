@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -Wall -D_FILE_OFFSET_BITS=64
+CFLAGS=-c -Wall
 LDFLAGS=
 SOURCES:= $(wildcard source/*.c) 
 OBJ_FILES = $(patsubst source/%.c,obj/%.o,$(SOURCES))
