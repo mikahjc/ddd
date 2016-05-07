@@ -234,6 +234,7 @@ void processTag(int client_socket, SendData *sendData)
 
 
 volatile sig_atomic_t shouldStop = 0;
+int closeAfterDump = 0;
 
 void HandleInterrupt(int signum)
 {
@@ -249,7 +250,8 @@ int main(int argc, char *argv[])
     printf("Title Dumper by Dimok\n");
     if(argc < 3) {
         printf("Usage:\n");
-        printf("titledumper [WiiU Path] [Local Path]\n");
+        printf("titledumper [-q] [-s][WiiU Path] [-d][Local Path]\n");
+        printf("             -q: quits after dump completes\n");
         printf("WiiU Path supported: /vol (for complete dump), /vol/content, /vol/code, /vol/meta, /vol/aoc and /vol/save or any sub-directories of those)\n");
         printf("Local Path e.g.: D:/some game/path or ./some game/path\n");
         return 0;
@@ -264,7 +266,6 @@ int main(int argc, char *argv[])
         ptr++;
     }
 
-
     ptr = (char*)argv[2];
     while(*ptr)
     {
@@ -278,8 +279,33 @@ int main(int argc, char *argv[])
     while(argv[2][strlen(argv[2])-1] == '/')
         argv[2][strlen(argv[2])-1] = '\0';
 
-    const char *cpTargetPath = argv[1];
-    cpOutputPath = argv[2];
+    const char *cpTargetPath = NULL;
+    int a = 1;
+    for (a = 1; a < argc; a++)
+    {
+        if (argv[a][0] == '-')
+        {
+            switch(argv[a][1])
+            {
+            case 'q': {
+                printf("Will quit after dump.\n");
+                closeAfterDump = 1;
+                break;
+            }
+            default: {
+                printf("Unrecognized option: %s", argv[a]);
+                break;
+            }
+            }
+        }
+        else
+        {
+            if (cpTargetPath == NULL)
+                cpTargetPath = argv[a];
+            else
+                cpOutputPath = argv[a];
+        }
+    }
 
     int serverSocket = NetInit();
     if(serverSocket < 0)
@@ -398,6 +424,13 @@ int main(int argc, char *argv[])
                     printf("Client %i connection closed\n", i);
                     close(clientSockets[i]);
                     clientSockets[i] = -1;
+                    int allSocketsClosed = 1;
+                    int j = 0;
+                    for (j = 0; j < MAX_CLIENTS; j++) {
+                        if (clientSockets[j] != -1)
+                            allSocketsClosed = 0;
+                    }
+                    if (closeAfterDump && allSocketsClosed == 1) shouldStop = 1;
                 }
             }
         }
